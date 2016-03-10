@@ -10,15 +10,15 @@
 class EventHandler {
 public:
   ~EventHandler() = default;
-  int fd;
-  void (*fire)(int fd);
+  int fd = 0;
+  void (*fire)();
 };
 
 class EVloop
 {
 public:
   EVloop();
-  int addEvent(EventHandler eh);
+  int addEvent(EventHandler* eh);
   int rmEvent(int fd);
   void run();
 private:
@@ -52,21 +52,23 @@ void EVloop::run()
     }
 
     for ( i = 0; i < nr_events; i++) {
-      printf ("Event=%ld on fd=%d\n", events[i].events, events[i].data.fd);
+      printf ("Event on fd=%d\n", events[i].data.fd);
+      static_cast<EventHandler*>(events[i].data.ptr)->fire();
     }
   }
 }
 
-int EVloop::addEvent(EventHandler eh)
+int EVloop::addEvent(EventHandler* eh)
 {
-  printf("Got yer FD! %d\n", eh.fd);
+  printf("Got yer FD! %d\n", eh->fd);
   int ret;
-  ret = epoll_ctl (epfd, EPOLL_CTL_ADD, eh.fd, &event);
+  event.data.ptr = eh;
+  ret = epoll_ctl (epfd, EPOLL_CTL_ADD, eh->fd, &event);
   if (ret)
     perror("Epoll_ctl_add");
 }
 
-void blah(int fd)
+void blah()
 {
   std::cout << "Yar!\n";
 }
@@ -81,9 +83,11 @@ int main()
 
   int fd = open ( "/home/vagrant/FIFO", O_RDONLY);
   printf("FD is %d\n", fd);
-  EventHandler eh;
-  eh.fd = fd;
-  eh.fire = &blah;
+  EventHandler* eh = (EventHandler *) calloc(1, sizeof(EventHandler));
+  eh->fd = fd;
+  eh->fire = &blah;
+
+  printf("EH FD is %d\n", eh->fd);
 
   ev.addEvent(eh);
 
