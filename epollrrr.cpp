@@ -11,7 +11,7 @@ class EventHandler {
 public:
   ~EventHandler() = default;
   int fd = 0;
-  void (*fire)();
+  void (*fire)(int fd);
 };
 
 class EVloop
@@ -52,8 +52,9 @@ void EVloop::run()
     }
 
     for ( i = 0; i < nr_events; i++) {
-      printf ("Event on fd=%d\n", events[i].data.fd);
-      static_cast<EventHandler*>(events[i].data.ptr)->fire();
+      printf ("Event %ld on fd=%d\n", events[i].events, events[i].data.fd);
+      exit(0);
+      //static_cast<EventHandler*>(events[i].data.ptr)->fire(events[i].data.fd);
     }
   }
 }
@@ -62,15 +63,19 @@ int EVloop::addEvent(EventHandler* eh)
 {
   printf("Got yer FD! %d\n", eh->fd);
   int ret;
+
+  event.data.fd = eh->fd;
   event.data.ptr = eh;
+  event.events = EPOLLIN | EPOLLOUT;
+
   ret = epoll_ctl (epfd, EPOLL_CTL_ADD, eh->fd, &event);
   if (ret)
     perror("Epoll_ctl_add");
 }
 
-void blah()
+void blah(int fd)
 {
-  std::cout << "Yar!\n";
+  std::cout << "Yar!: " << fd << "\n";
 }
 
 int main()
