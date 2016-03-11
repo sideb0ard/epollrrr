@@ -22,10 +22,13 @@ struct fd_callback_data {
 };
 
 
-int epfd = -1;
-int fd_signal = -1;
-int fd_timer = -1;
+int  epfd = -1;
+int  fd_signal = -1;
+int  fd_timer = -1;
+bool read_from_stdin = false;
 
+
+// FD_SIGNAL ////////////////////////////////
 void on_signal()
 {
     /* read fd_signal to handle event */
@@ -53,12 +56,26 @@ struct fd_callback_data setup_signalfd()
     return (struct fd_callback_data){ fd_signal, fd_signal_data };
 
 }
+// END FD_SIGNAL ////////////////////////////////
 
+
+// FD_STDIN ////////////////////////////////
 void on_stdin()
 {
     std::cout << "Boo ya: STDIN Input\n";
+    std::string input;
+    std::cin >> input;
+    std::cout << "I gots :" << input << std::endl;
 }
+struct fd_callback_data setup_stdin()
+{
+    epoll_event fd_stdin_data = { EPOLLIN, { .ptr = (void*) on_stdin }};
+    return (struct fd_callback_data){ STDIN_FILENO, fd_stdin_data };
+}
+// FD_STDIN ////////////////////////////////
 
+
+// FD_TIMER ////////////////////////////////
 void on_timer_up()
 {
     std::cout << "Boom, timer expired!\n";
@@ -89,6 +106,7 @@ struct fd_callback_data setup_timerfd()
 
     return (struct fd_callback_data){ fd_timer, fd_timer_data };
 }
+// FD_TIMER ////////////////////////////////
 
 
 int main(int argc, char* argv[])
@@ -96,6 +114,7 @@ int main(int argc, char* argv[])
     std::vector<fd_callback_data> polls;
     polls.push_back(setup_signalfd());
     polls.push_back(setup_timerfd());
+    polls.push_back(setup_stdin());
 
     epfd = epoll_create ( 1 );
 
