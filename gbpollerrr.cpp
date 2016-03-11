@@ -16,7 +16,7 @@
 int epfd = -1;
 int fd_signal = -1;
 
-struct functionp_wrapper {
+struct callback_wrapper {
     // as far as I can tell, no way to cast a data pointer to
     // a function pointer, so using a wrapper instead
     void (*fire)();
@@ -56,10 +56,10 @@ int main(int argc, char* argv[])
     int ret = 0;
 
     fd_signal = setup_fd_signal();
-    struct functionp_wrapper* fw;
-    fw = (struct functionp_wrapper *) calloc(1, sizeof(struct functionp_wrapper));
-    fw->fire = &on_signal;
-    epoll_event fd_signal_data = { EPOLLIN, { .ptr = fw }};
+    struct callback_wrapper* cb;
+    cb = (struct callback_wrapper *) calloc(1, sizeof(struct callback_wrapper));
+    cb->fire = &on_signal;
+    epoll_event fd_signal_data = { EPOLLIN, { .ptr = cb }};
 
     ret = epoll_ctl(epfd, EPOLL_CTL_ADD, fd_signal, &fd_signal_data);
     if (ret)
@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
           handle_error("epoll_wait");
 
         for ( unsigned n = 0 ; n < event_count ; ++n ) {
-            auto callback = static_cast<struct functionp_wrapper*>(events[n].data.ptr)->fire;
+            auto callback = static_cast<struct callback_wrapper*>(events[n].data.ptr)->fire;
             callback();
         }
     }
