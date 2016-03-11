@@ -25,23 +25,30 @@ struct fd_callback_data {
 int  epfd = -1;
 int  fd_signal = -1;
 int  fd_timer = -1;
-bool read_from_stdin = false;
+int  read_from_stdin = 0;
 
 
 // FD_SIGNAL ////////////////////////////////
 void on_signal()
 {
-    /* read fd_signal to handle event */
     std::cout << "Boo ya: FD_SIG: " << fd_signal << "\n";
     struct signalfd_siginfo info;
     ssize_t bytes = read(fd_signal, &info, sizeof(info));
     assert(bytes == sizeof(info));
+    if ( info.ssi_signo == SIGHUP ) {
+        std::cout << "Got a SIGHUP - gonna toggle read_from_stdin\n";
+        read_from_stdin = 1 - read_from_stdin;
+    } else if ( info.ssi_signo == SIGINT ) {
+        std::cout << "Ha, ignoring your Ctrl-C\n";
+    }
+
 }
 struct fd_callback_data setup_signalfd()
 {
     sigset_t mask;
     sigemptyset ( &mask );
     sigaddset ( &mask, SIGINT );
+    sigaddset ( &mask, SIGHUP );
 
     // block default signal handler
     if ( sigprocmask ( SIG_BLOCK, &mask, NULL ) == 1 )
@@ -62,10 +69,17 @@ struct fd_callback_data setup_signalfd()
 // FD_STDIN ////////////////////////////////
 void on_stdin()
 {
-    std::cout << "Boo ya: STDIN Input\n";
-    std::string input;
-    std::cin >> input;
-    std::cout << "I gots :" << input << std::endl;
+    if ( read_from_stdin ) {
+        std::string input = "";
+        getline(std::cin, input);
+        if ( input.length() == 0 ) return;
+        std::cout << "Boo ya: STDIN Input\n";
+        std::cout << "I gots :" << input << std::endl;
+    } else {
+        std::string devnull_stream = ""; // i'm sure there is a cleaner way
+        getline(std::cin, devnull_stream);
+    }
+
 }
 struct fd_callback_data setup_stdin()
 {
